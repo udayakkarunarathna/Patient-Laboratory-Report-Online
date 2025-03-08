@@ -1,0 +1,20 @@
+<html>   
+<head>   
+    <title> Add a WhatsApp sharing link on a website </title>   
+</head>   
+<style>  
+     //css code to hide the WhatsApp sharing link on the large screen  
+    @media screen and (min-width: 1000px) {  
+        a {  
+            display: none  
+        }  
+    }  
+</style>  
+  
+<body>   
+    <h3 style="color:brown"> WhatsApp sharing Link </h3>   
+    <!-- create a link using anchor tab -->  
+    <a href="whatsapp://send?text=This is WhatsApp sharing example using link"       data-action="share/whatsapp/share"  
+        target="_blank"> Share to WhatsApp </a>   
+</body>   
+</html>  

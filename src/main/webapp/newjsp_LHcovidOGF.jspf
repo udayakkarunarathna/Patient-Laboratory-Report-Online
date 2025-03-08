@@ -1,0 +1,367 @@
+<%@page import="java.sql.ResultSet"%>
+<%@page import="eHospitalLab.*"%>
+<table width="100%" style="font-size: 10pt">
+	<%
+	String AIR_REF = "";
+	String NAT = "";
+	if (reportheaderHashMap == null) {
+		reportheaderHashMap = new java.util.HashMap<String, String>();
+		String fullname = "";
+		String bht = "", age_yy = "", in = "", newInvoice = "", AUTHORIZED_DATE = "";
+		String empNo = "", mobPkg = "", dat = "", time = "", doc = "", age_mm = "", enterdate = "", entertime = "",
+		nidd = "", dobb = "";
+		String UPIN = "";
+		String sex = "";
+		try {
+			conn1NEW.ConnectToDataBase();
+			String querynew = " select lab_ref_no,invoice_no,test_profile_code,nvl(TO_CHAR (sample_collected_time,'DD/MM/YYYY'),TO_CHAR(sysdate,'DD/MM/YYYY'))sample_collected_date,nvl(TO_CHAR(sample_collected_time,'HH:MI AM'),to_char(sysdate,'HH:MI AM'))sample_collected_time,AUTHORIZED_USER,to_char(AUTHORIZED_DATE,'dd/mm/yyyy hh:mi AM') AUTHORIZED_DATE from lab_test_breakdown@COLOMBO_LIVE where lab_ref_no='"
+			+ lab_no + "'";
+			rsnew = conn1NEW.query(querynew);
+			while (rsnew.next()) {
+		AUTHORIZED_DATE = rsnew.getString("AUTHORIZED_DATE");
+		in = rsnew.getString("invoice_no");
+		String authorizedUser = rsnew.getString(6);
+		pathologist = authorizedUser;
+		newInvoice = in.substring(0, 3);
+		if (newInvoice.equals("AGL")) {
+			//For Medical Centre Request Form
+			String query10 = "select m.CLINIC_ID,m.CLINIC_NAME,t.REG_NO from metro_labs@COLOMBO_LIVE m,LAB_AGENT_INVOICES@COLOMBO_LIVE t where m.CLINIC_ID=t.CLINIC_ID and t.INVOICE_NO='"
+					+ in + "'";
+			try {
+				conn2NEW.ConnectToDataBase();
+				rsnew2 = conn2NEW.query(query10);
+				while (rsnew2.next()) {
+					agentName = rsnew2.getString(2);
+					Receiptno = rsnew2.getString(3);
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			} finally {
+				conn2NEW.CloseDataBaseConnection();
+			}
+		}
+		if (newInvoice.equals("OFM") || newInvoice.equals("CHM")) {
+			//For Medical Package
+			String query10 = "select n.PACKAGE_NAME,nvl(n.SHORT_NAME,n.PACKAGE_NAME)  from MEDI_PACK_INVOICES@COLOMBO_LIVE m, MEDICAL_PACKAGES@COLOMBO_LIVE n where m.PACKAGE_ID=n.PACKAGE_ID and  m.SERVICE_REF_NO='"
+					+ in + "'";
+			try {
+				conn2NEW.ConnectToDataBase();
+				rsnew2 = conn2NEW.query(query10);
+				while (rsnew2.next()) {
+					mediPack = rsnew2.getString(1);
+					mediPackShort = rsnew2.getString(2);
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			} finally {
+				conn2NEW.CloseDataBaseConnection();
+			}
+		}
+		if (in == null) {
+			//Validate Invoice
+			request.setAttribute("ErrorMessage", "Entered LAb Reference No not Exist ");
+			request.setAttribute("ErrorType", "ERROR");
+		} else {
+			lab_no1 = rsnew.getString("lab_ref_no");
+			test_code = rsnew.getString("test_profile_code");
+			code1 = test_code.substring(0, 1);
+			dat = rsnew.getString("sample_collected_date");
+			time = rsnew.getString("sample_collected_time");
+			String query1 = "select name_bht,txn_type, decode(ref_doctor,null,'-',nvl(ref_doctor,'-')) as ref_doctor, TO_CHAR(sysdate,'DD/MM/YYYY')enterdate,to_char(sysdate,'HH:MI AM')entertime ,nvl(to_char(age_yy),'  ')age_yy,nvl(to_char(age_mm),' ')age_mm "
+					+ ", NVL(UPIN, '-') UPIN, NVL(NID, '-') NID, NVL(I.DOB, NVL((SELECT TO_CHAR(U.DOB, 'DD/MM/YY') FROM UNQ_PATIENT_IDS@COLOMBO_LIVE U WHERE U.PIN_NO = I.UPIN AND ROWNUM = 1),'-')) DOB, NVL(AIR_REF, '-') AIR_REF, NVL(I.NATIONALITY, '-') NAT,NVL(i.SEX,'-') SEX from lab_test_invoices@COLOMBO_LIVE I where invoice_no='"
+					+ in + "'";
+			try {
+				conn2NEW.ConnectToDataBase();
+				rsnew3 = conn2NEW.query(query1);
+				while (rsnew3.next()) {
+					String name = rsnew3.getString("name_bht");
+					UPIN = rsnew3.getString("UPIN");
+					age_yy = rsnew3.getString("age_yy");
+					age_mm = rsnew3.getString("age_mm");
+					nidd = rsnew3.getString("NID");
+					AIR_REF = rsnew3.getString("AIR_REF");
+					NAT = rsnew3.getString("NAT");
+					dobb = rsnew3.getString("DOB");
+					sex = rsnew3.getString("SEX");
+					String txn_type = rsnew3.getString("txn_type");
+					try {
+						conn3NEW.ConnectToDataBase();
+						if (txn_type.equals("INWARDS")) {
+							String bhtquery = "select initials,surname,v.CURRENT_ROOM_NO,title "
+									+ " from patient_registration@COLOMBO_LIVE p,hospital_visit@COLOMBO_LIVE v "
+									+ " where v.BHT='" + name + "' " + " and v.REGISTRATION_NO=p.REGISTRATION_NO";
+							rs7new = conn3NEW.query(bhtquery);
+							while (rs7new.next()) {
+								bht = name;
+								String initial = rs7new.getString(1);
+								String surname = rs7new.getString(2);
+								roomNo = rs7new.getString(3);
+								String title = rs7new.getString(4);
+								fullname = title + " " + initial + "." + surname;
+							}
+						} else if (txn_type.equals("LAB")) {
+							String mobpkg = "SELECT li.REMARKS,mp.PACKAGE_NAME,nvl(mp.SHORT_NAME,mp.PACKAGE_NAME) FROM LAB_TEST_INVOICES@COLOMBO_LIVE li, MEDICAL_PACKAGES@COLOMBO_LIVE mp WHERE li.PACKAGE_ID=mp.PACKAGE_ID AND li.INVOICE_NO='"
+									+ in + "'";
+							rs7new = conn3NEW.query(mobpkg);
+							while (rs7new.next()) {
+								empNo = rs7new.getString(1);
+								mobPkg = rs7new.getString(2);
+								mediPackShort = rs7new.getString(3);
+							}
+							bht = "-";
+							fullname = name;
+							mediPack = mobPkg;
+						} else {
+							bht = "-";
+							fullname = name;
+						}
+					} catch (Exception e) {
+						e.printStackTrace();
+					} finally {
+						conn3NEW.CloseDataBaseConnection();
+					}
+					doc = rsnew3.getString("ref_doctor");
+					enterdate = rsnew3.getString("enterdate");
+					entertime = rsnew3.getString("entertime");
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			} finally {
+				conn2NEW.CloseDataBaseConnection();
+			}
+		}
+			}
+		} catch (Exception e) {
+		} finally {
+			rsnew = null;
+			rsnew2 = null;
+			rsnew3 = null;
+			rs7new = null;
+			conn1NEW.CloseDataBaseConnection();
+		}
+		reportheaderHashMap.put("mediPackShort", mediPackShort);
+		reportheaderHashMap.put("UPIN", UPIN);
+		reportheaderHashMap.put("fullname", fullname);
+		reportheaderHashMap.put("doc", doc);
+		reportheaderHashMap.put("agentName", agentName);
+		reportheaderHashMap.put("Receiptno", Receiptno);
+		reportheaderHashMap.put("mediPack", mediPack);
+		reportheaderHashMap.put("empNo", empNo);
+		reportheaderHashMap.put("age_mm", age_mm);
+		reportheaderHashMap.put("age_yy", age_yy);
+		reportheaderHashMap.put("in", in);
+		reportheaderHashMap.put("bht", bht);
+		reportheaderHashMap.put("roomNo", roomNo);
+		reportheaderHashMap.put("dat", dat);
+		reportheaderHashMap.put("time", time);
+		reportheaderHashMap.put("newInvoice", newInvoice);
+		reportheaderHashMap.put("enterdate", enterdate);
+		reportheaderHashMap.put("entertime", entertime);
+		reportheaderHashMap.put("AUTHORIZED_DATE", AUTHORIZED_DATE);
+		reportheaderHashMap.put("nidd", nidd);
+		reportheaderHashMap.put("dobb", dobb);
+		reportheaderHashMap.put("sex", sex);
+	} else {
+		try {
+			conn1NEW.ConnectToDataBase();
+			String querynew = " select test_profile_code,lab_ref_no from lab_test_breakdown@COLOMBO_LIVE where lab_ref_no='"
+			+ lab_no + "'";
+			rsnew = conn1NEW.query(querynew);
+			while (rsnew.next()) {
+		lab_no1 = rsnew.getString("lab_ref_no");
+		test_code = rsnew.getString("test_profile_code");
+		code1 = test_code.substring(0, 1);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			rsnew = null;
+			conn1NEW.CloseDataBaseConnection();
+		}
+	}
+	int xy1 = 0;
+	String query21 = "select count(*) from lab_test_breakdown@COLOMBO_LIVE where lab_ref_no='" + lab_no
+			+ "' and TEST_PROFILE_CODE = 'P00031311'";
+	DatabaseConnection conn21 = new DatabaseConnection();
+	ResultSet rs21 = null;
+	try {
+		conn21.ConnectToDataBase();
+		rs21 = conn21.query(query21);
+		while (rs21.next()) {
+			xy1 = rs21.getInt(1);
+		}
+		conn21.CloseDataBaseConnection();
+	} catch (Exception e) {
+		conn21.CloseDataBaseConnection();
+	}
+	int xy19 = 0;
+	String query219 = "SELECT count(*) FROM LAB_TEST_INVOICES@COLOMBO_LIVE I WHERE I.INVOICE_NO = (SELECT B.INVOICE_NO FROM LAB_TEST_BREAKDOWN@COLOMBO_LIVE B WHERE B.LAB_REF_NO = '"
+			+ lab_no + "') and I.NATIONALITY = 'CHINESE' ";
+	DatabaseConnection conn219 = new DatabaseConnection();
+	ResultSet rs219 = null;
+	try {
+		conn219.ConnectToDataBase();
+		rs219 = conn219.query(query219);
+		while (rs219.next()) {
+			xy19 = rs219.getInt(1);
+		}
+		conn219.CloseDataBaseConnection();
+	} catch (Exception e) {
+		conn219.CloseDataBaseConnection();
+	}
+	%>
+	<%
+	if (reportheaderHashMap.get("mediPackShort") != null && !reportheaderHashMap.get("mediPackShort").equals("")) {
+	%>
+	<tr>
+		<td colspan="6" class="boldCls" align="center"><i><u><%=reportheaderHashMap.get("mediPackShort")%></u></i></td>
+	</tr>
+	<%
+	}
+	%>
+	<%
+	if (xy19 > 0) {
+	%>
+	<tr>
+		<td height="20px" colspan="6" align="center" class="boldCls">COVID-19
+			REPORT - FOR PEOPLE'S REPUBLIC OF CHINA</td>
+	</tr>
+	<%
+	} else {
+	%>
+	<tr>
+		<td height="20px" colspan="6" align="center" class="boldCls">COVID-19
+			REPORT</td>
+	</tr>
+	<%
+	}
+	%>
+	<%
+	String namefull = (String) reportheaderHashMap.get("fullname");
+	%>
+	<tr>
+		<td height="20px" align="left" class="boldCls">NAME AS IN
+			DOCUMENT</td>
+		<td class="boldCls" align="center">:</td>
+		<td colspan="4" class="boldCls"><%=namefull%></td>
+	</tr>
+	<%
+	if (xy1 > 0) {
+	%>
+	<tr>
+		<td height="20px" align="left">REFERENCE</td>
+		<td class="boldCls" align="center">:</td>
+		<td colspan="4">EMBASSY OF THE PEOPLE'S REPUBLIC OF CHINA IN SRI
+			LANKA</td>
+	</tr>
+	<%
+	} else {
+	%>
+	<tr>
+		<td height="20px" align="left">REFERENCE</td>
+		<td class="boldCls" align="center">:</td>
+		<td colspan="4"><%=reportheaderHashMap.get("doc")%></td>
+	</tr>
+	<%
+	}
+	%>
+	<%
+	if ((reportheaderHashMap.get("newInvoice")).equals("AGL")) {
+	%>
+	<tr>
+		<td height="20px" align="left" class="boldCls">MEDICAL
+			CENTRE/COMPANY</td>
+		<td class="boldCls" align="center">:</td>
+		<td colspan="4" class="boldCls"><%=reportheaderHashMap.get("agentName")%></td>
+	</tr>
+	<tr>
+		<td height="20px" align="left" class="boldCls">PASSPORT/ NIC NO</td>
+		<td class="boldCls" align="center">:</td>
+		<td class="boldCls"><%=reportheaderHashMap.get("nidd")%></td>
+		<td height="20px" class="boldCls" align="right">AIR TICKET REF NO</td>
+		<td class="boldCls" align="center">:</td>
+		<td class="boldCls"><%=AIR_REF%></td>
+	</tr>
+	<%
+	} else if (((reportheaderHashMap.get("newInvoice")).equals("CHL")
+			|| (reportheaderHashMap.get("newInvoice")).equals("OFL"))) {
+	%>
+	<tr>
+		<td height="20px" class="boldCls" align="left">PASSPORT/ NIC NO</td>
+		<td class="boldCls" align="center">:</td>
+		<td class="boldCls"><%=reportheaderHashMap.get("nidd")%></td>
+		<td height="20px" class="boldCls" align="right">AIR TICKET REF NO</td>
+		<td class="boldCls" align="center">:</td>
+		<td class="boldCls"><%=AIR_REF%></td>
+	</tr>
+	<%
+	} else if ((reportheaderHashMap.get("newInvoice")).equals("OFM")
+			|| (reportheaderHashMap.get("newInvoice")).equals("CHM")
+			|| (reportheaderHashMap.get("newInvoice")).equals("MOL")) {
+	%>
+	<tr>
+		<td height="20px" class="boldCls" align="left">MEDICAL PACKAGE</td>
+		<td class="boldCls" align="center">:</td>
+		<td class="boldCls" colspan="4"><%=reportheaderHashMap.get("mediPack")%></td>
+	</tr>
+	<%
+	}
+	if ((reportheaderHashMap.get("newInvoice")).equals("MOL")) {
+	%>
+	<tr>
+		<td height="20px" align="left">EMPLOYEE NO</td>
+		<td align="center">:</td>
+		<td colspan="4"><%=reportheaderHashMap.get("empNo")%></td>
+	</tr>
+	<%
+	}
+	%>
+	<tr>
+		<td height="20px" align="left">DOB (DD/MM/YY)</td>
+		<td align="center">:</td>
+		<td><%=reportheaderHashMap.get("dobb")%></td>
+		<td height="20px" align="right">SAMPLE COLLECTED</td>
+		<td align="center">:</td>
+		<td><%=reportheaderHashMap.get("dat")%> <%=reportheaderHashMap.get("time")%></td>
+	</tr>
+	<%
+	if ((reportheaderHashMap.get("newInvoice")).equals("NSL")) {
+	%>
+	<tr>
+		<td height="20px" align="left">BHT</td>
+		<td align="center">:</td>
+		<td><%=reportheaderHashMap.get("bht")%></td>
+		<td height="20px" align="right">ROOM NO</td>
+		<td align="center">:</td>
+		<td><%=reportheaderHashMap.get("roomNo")%></td>
+	</tr>
+	<%
+	}
+	%>
+	<tr>
+		<td height="20px" align="left" width="15%">REF. NO</td>
+		<td align="center" width="5px">:</td>
+		<td><%=reportheaderHashMap.get("in")%></td>
+		<td height="20px" align="right">READY DATE</td>
+		<td align="center" width="10px">:</td>
+		<td><%=reportheaderHashMap.get("AUTHORIZED_DATE")%></td>
+	</tr>
+	<tr>
+		<td height="20px" align="left">UPIN</td>
+		<td align="center">:</td>
+		<td><%=reportheaderHashMap.get("UPIN")%></td>
+		<td height="20px" align="right">PRINTED DATE</td>
+		<td align="center">:</td>
+		<td><%=reportheaderHashMap.get("enterdate")%> <%=reportheaderHashMap.get("entertime")%></td>
+	</tr>
+	<tr>
+		<td height="20px" align="left">NATIONALITY</td>
+		<td align="center">:</td>
+		<td colspan="4"><%=NAT%></td>
+	</tr>
+	<tr>
+		<td height="20px" align="left">GENDER</td>
+		<td align="center">:</td>
+		<td colspan="4"><%=reportheaderHashMap.get("sex")%></td>
+	</tr>
+</table>
